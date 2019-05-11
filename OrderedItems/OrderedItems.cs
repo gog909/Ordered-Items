@@ -155,11 +155,11 @@ namespace OrderedItems
             ConfigHandler.chatEnabledWrapper = ConfigHandler.Config.Wrap
             (
                 "Settings",
-                "Chat Enabled",
+                "ChatEnabled",
                 "This setting determines whether or not the chat will be used for\n" +
                 "   minor debugging and other notification purposes. Chat messages\n" +
-                "   are clientside only." +
-                "--------------------------------------------------------------------" +
+                "   are clientside only.\n" +
+                "--------------------------------------------------------------------\n" +
                 "DEFAULT: true",
                 true
             );
@@ -171,7 +171,7 @@ namespace OrderedItems
                 "This setting determines the order in which items are sorted by tier,\n" +
                 "   the order from left to right indicates the position in the\n" +
                 "   itembar, with the order starting from the top left and continuing\n" +
-                "   to the bottom right." +
+                "   to the bottom right.\n" +
                 "Each tier is represented by a number between 1 and 5 where,\n" +
                 "   1 = White, 2 = Green, 3 = Boss, 4 = Lunar and 5 = Red.\n" +
                 "--------------------------------------------------------------------\n" +
