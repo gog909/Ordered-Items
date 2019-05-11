@@ -17,7 +17,7 @@ Navigate to your Risk of Rain 2 directory. Remove the `OrderedItems` folder from
 
 
 ## Configuration File
-![config](https://i.imgur.com/VvgNzRq.png "Configuration file")
+![config](https://raw.githubusercontent.com/gog909/Ordered-Items/master/images/configuration.PNG "Configuration file")
 
 
 ### Version Log
