@@ -2,6 +2,7 @@
 using RoR2;
 using System.Collections.Generic;
 using System.Reflection;
+using System;
 using UnityEngine;
 
 namespace OrderedItems
@@ -15,13 +16,16 @@ namespace OrderedItems
         // Mod metadata.
         public const string MODGUID = "com.gog909.ordereditems";
         public const string MODNAME = "Ordered Items";
-        public const string MODVER = "2.0.0";
+        public const string MODVER = "2.1.0";
         public const string Dependancy = MODGUID;
+
+        public bool isRunActive;
 
 
         // Initialises mod at the beginning of the game.
         public void Awake()
         {
+
             // Initialises other classes.
             Reflection.Init();
             LogHandler.Init(this.Logger);
@@ -30,7 +34,8 @@ namespace OrderedItems
             // Injects inventory hook.
             On.RoR2.UI.ItemInventoryDisplay.OnInventoryChanged += this.InventoryHook;
 
-            LogHandler.Log("Ordered Items is enabled.");
+
+            LogHandler.Log("Ordered Items is enabled.", false);
         }
 
 
@@ -83,11 +88,10 @@ namespace OrderedItems
 
             for (int i = 0; i < itemStacks.Length; i++)
             {
-                ItemIndex itemIndex = (ItemIndex)i;
                 if (itemStacks[i] > 0)
                 {
                     ItemIndex index = (ItemIndex)i;
-                    switch (ItemCatalog.GetItemDef(itemIndex).tier)
+                    switch (ItemCatalog.GetItemDef(index).tier)
                     {
                         case ItemTier.Tier1:
                             listWhite.Add(index);
@@ -111,7 +115,6 @@ namespace OrderedItems
                 }
             }
 
-            // Orders items by tier using config file.
             var tierList = new List<ItemIndex>[]
             {
                     listWhite,
@@ -121,6 +124,16 @@ namespace OrderedItems
                     listRed
             };
 
+            // Organizes items in each tier alphabetically, determined in config file.
+            if (ConfigHandler.alphabeticOrder)
+            {
+                foreach (List<ItemIndex> list in tierList)
+                {
+                    list.Sort(new ItemNameComparer());
+                }
+            }
+
+            // Orders items by tier using config file.
             List<ItemIndex> itemOrder = new List<ItemIndex>();
 
             for (int i = 0; i < 5; i++)
@@ -135,33 +148,51 @@ namespace OrderedItems
         }
     }
 
+    // Comparer for alphabetic order.
+    public class ItemNameComparer : IComparer<ItemIndex>
+    {
+        public int Compare(ItemIndex a, ItemIndex b)
+        {
+            string aName = Language.GetString(ItemCatalog.GetItemDef(a).nameToken);
+            string bName = Language.GetString(ItemCatalog.GetItemDef(b).nameToken);
+            if (aName == null || bName == null)
+            {
+                return 0;
+            }
 
-    // Handles the mods configuration file.
+            return aName.CompareTo(bName);
+        }
+    }
+
+
+    // Handles the mod's configuration file.
     public static class ConfigHandler
     {
         public static BepInEx.Configuration.ConfigFile Config;
 
-        public static BepInEx.Configuration.ConfigWrapper<bool> chatEnabledWrapper;
-        public static bool chatEnabled;
+        public static BepInEx.Configuration.ConfigWrapper<bool> alphabeticOrderWrapper;
+        public static bool alphabeticOrder;
 
         public static BepInEx.Configuration.ConfigWrapper<string> tierOrderWrapper;
+        public static int[] tierOrderDefault = new int[5] { 3, 4, 2, 1, 0 };
+        public static int[] tierOrderLast;
         public static int[] tierOrder = new int[5];
+
+        public static bool isFirstWarning = true;
 
 
         public static void Init(BepInEx.Configuration.ConfigFile configSource)
         {
             ConfigHandler.Config = configSource;
 
-            ConfigHandler.chatEnabledWrapper = ConfigHandler.Config.Wrap
+            ConfigHandler.alphabeticOrderWrapper = ConfigHandler.Config.Wrap
             (
                 "Settings",
-                "ChatEnabled",
-                "This setting determines whether or not the chat will be used for\n" +
-                "   minor debugging and other notification purposes. Chat messages\n" +
-                "   are clientside only.\n" +
+                "AlphabeticOrder",
+                "This setting determines if items are sorted by name instead of ID.\n" +
                 "--------------------------------------------------------------------\n" +
-                "DEFAULT: true",
-                true
+                "DEFAULT: false",
+                false
             );
 
             ConfigHandler.tierOrderWrapper = ConfigHandler.Config.Wrap
@@ -176,9 +207,15 @@ namespace OrderedItems
                 "   1 = White, 2 = Green, 3 = Boss, 4 = Lunar and 5 = Red.\n" +
                 "--------------------------------------------------------------------\n" +
                 "If changed in game, changes will take effect on the next item pickup\n" +
-                "DEFAULT: 12345",
-                "12345"
+                "DEFAULT: 45321",
+                "45321"
             );
+
+            // Reminder every time a game starts to change config if broken.
+            RoR2.Run.onRunStartGlobal += (Run run) =>
+            {
+                ConfigHandler.tierOrderLast = null;
+            };
 
             ConfigHandler.Config.Save();
             ConfigHandler.UpdateConfig();
@@ -189,64 +226,112 @@ namespace OrderedItems
         public static void UpdateConfig()
         {
             ConfigHandler.Config.Reload();
-            ConfigHandler.chatEnabled = ConfigHandler.chatEnabledWrapper.Value;
-            ConfigHandler.handleTierOrderConfig();
+
+            ConfigHandler.alphabeticOrder = ConfigHandler.alphabeticOrderWrapper.Value;
+
+            ConfigHandler.HandleTierOrderConfig();
+        }
+
+
+        // Resets the TierOrder value to default
+        public static void DefaultTierOrderConfig()
+        {
+
+            // Handle warning on startup and during game.
+            if (ConfigHandler.tierOrderLast != ConfigHandler.tierOrder)
+            {
+                ConfigHandler.tierOrderLast = ConfigHandler.tierOrder;
+                if (ConfigHandler.isFirstWarning)
+                {
+                    ConfigHandler.isFirstWarning = false;
+                    LogHandler.Log("TierOrder configuration is invalid, currently using default settings.", false, BepInEx.Logging.LogLevel.Warning);
+                }
+                else
+                {
+                    LogHandler.Log("TierOrder configuration is invalid, currently using default settings.", true, BepInEx.Logging.LogLevel.Warning);
+                }
+            }
+
+            // Default the tierOrder value.
+            if (ConfigHandler.tierOrder != ConfigHandler.tierOrderDefault)
+            {
+                ConfigHandler.tierOrderDefault.CopyTo(ConfigHandler.tierOrder, 0);
+            }
         }
 
 
         // Manages converting the TierOrder value from a string to an integer array.
-        public static void handleTierOrderConfig()
+        public static void HandleTierOrderConfig()
         {
             string TierOrderValue = ConfigHandler.tierOrderWrapper.Value;
 
-            var count = 0;
-            foreach (char chr in TierOrderValue.ToCharArray())
+            if (TierOrderValue.Length < 5 | TierOrderValue.Length > 5)
             {
-                var i = (int)chr - 49;
-                if (0 <= i && i <= 4)
+                ConfigHandler.DefaultTierOrderConfig();
+            }
+            else
+            {
+                var count = 0;
+                foreach (char chr in TierOrderValue.ToCharArray())
                 {
-                    ConfigHandler.tierOrder[count] = i;
-                    count += 1;
-                }
-                else
-                {
-                    // The configuration is invalid.
-                    LogHandler.Log("TierOrder configuration is invalid, currently using default settings.", BepInEx.Logging.LogLevel.Warning);
-                    for (int j = 0; j < ConfigHandler.tierOrder.Length; j++)
+                    var i = (int)chr - 49;
+                    if (0 <= i && i <= 4)
                     {
-                        ConfigHandler.tierOrder[j] = j;
+                        ConfigHandler.tierOrder[count] = i;
+                        count += 1;
                     }
-                    break;
+                    else
+                    {
+                        ConfigHandler.DefaultTierOrderConfig();
+                        break;
+                    }
                 }
             }
         }
     }
 
 
+    // Handles the mod's logging.
     public static class LogHandler
     {
         public static BepInEx.Logging.ManualLogSource Logger;
 
         public static string prefix;
 
+        public static Color32[] Colors = new Color32[]
+        {
+            new Color32(111, 10, 170, 255),
+            new Color32(14, 83, 167, 255),
+            new Color32(0, 155, 149, 255),
+            new Color32(255, 113, 0, 255),
+            new Color32(255, 40, 0, 255)
+        };
+
+
         public static void Init(BepInEx.Logging.ManualLogSource loggerSource)
         {
             LogHandler.Logger = loggerSource;
+            LogHandler.GeneratePrefix();
         }
 
-        public static void Log(string message, BepInEx.Logging.LogLevel priority = BepInEx.Logging.LogLevel.Debug)
-        {
-            if (ConfigHandler.chatEnabled)
+
+        public static void Log(string message, bool chat, BepInEx.Logging.LogLevel priority = BepInEx.Logging.LogLevel.Debug)
+        { 
+            if (chat)
             {
+                LogHandler.GeneratePrefix();
                 Chat.AddMessage(LogHandler.prefix + message);
             }
             LogHandler.Logger.Log(priority, message);
         }
 
+
         public static void GeneratePrefix()
         {
-            LogHandler.prefix = ("[" + OrderedItems.MODNAME + " v" + OrderedItems.MODVER + "]: ").Coloured(RoR2.ColorCatalog.GetColor(RoR2.ColorCatalog.ColorIndex.Tier3Item));
+            LogHandler.prefix = ("[" + OrderedItems.MODNAME + " v" + OrderedItems.MODVER + "]: ")
+                .Coloured(LogHandler.Colors[UnityEngine.Random.Range(0, LogHandler.Colors.Length)]);
         }
+
 
         public static string Coloured(this string message, Color32 color)
         {
@@ -255,7 +340,6 @@ namespace OrderedItems
             return result;
         }
     }
-
 
     // Cached reflection fields and types.
     public static class Reflection
@@ -275,7 +359,6 @@ namespace OrderedItems
             Reflection.cachedItemOrderField = cachedItemInventoryDisplayType.GetField("itemOrder", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Reflection.cachedItemStacksField = cachedItemInventoryDisplayType.GetField("itemStacks", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             Reflection.cachedRequestDisplayUpdateMethod = cachedItemInventoryDisplayType.GetMethod("RequestUpdateDisplay", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
         }
 }
 }
