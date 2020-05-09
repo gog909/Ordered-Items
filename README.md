@@ -5,7 +5,7 @@ A Risk of Rain 2 mod.
 ___
 
 ## What is Ordered Items
-Ordered Items is a completely clientside quality of life mod. It organizes the items in the item bar by their in game ID and their Tier. This removes the cluttered and unintuitive system implemented by the game, where the items are placed in the order that they are aqcuired. The Tier ordering can be modified in the configuration file. In addition, the mod does not affect anyone without it installed and does not require you to be host or any other players to have the mod installed for it to work.
+Ordered Items is a clientside quality of life mod that organises the order in which items are displayed according to the item's tier and ID/name. This replaces the cluttered and unintuitive system in which items are displayed in the order that they are acquired. The configuration file allows modification of the tier ordering and provides an option to use alphabetic ordering instead of item ID ordering. Since Ordered Items is clientside, you do not have to be the host in multiplayer matches, nor do any other users need to have it installed.
 
 ![gameplay](https://raw.githubusercontent.com/gog909/Ordered-Items/master/images/gameplay.PNG)
 
@@ -27,6 +27,11 @@ It is located at `BepInEx/config/com.gog909.ordereditems.cfg`
 ### Version Log
 
 ```
+Version 2.2.0: Error messages and configuration messages have been modified to be more user
+               friendly and the item sorting mechanics have been reworked to be more efficient.
+               May have resolved a bug that caused the top inventory display to partially
+               disappear during long multiplayer matches.
+
 Version 2.1.0: Removed ChatEnabled configuration and added option for alphabetical ordering,
                cleaned up error messages for incorrect configuration. Also changed default
                tier order from white to red to lunar to white.
