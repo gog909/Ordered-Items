@@ -27,6 +27,8 @@ It is located at `BepInEx/config/com.gog909.ordereditems.cfg`
 ### Version Log
 
 ```
+Version 2.2.1: Fixed incorrect version numbers.
+
 Version 2.2.0: Error messages and configuration messages have been modified to be more user
                friendly and the item sorting mechanics have been reworked to be more efficient.
                May have resolved a bug that caused the top inventory display to partially

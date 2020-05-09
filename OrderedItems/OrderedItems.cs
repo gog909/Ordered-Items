@@ -15,7 +15,7 @@ namespace OrderedItems
     {
         public const string MODGUID = "com.gog909.ordereditems";
         public const string MODNAME = "Ordered Items";
-        public const string MODVER = "2.2.0";
+        public const string MODVER = "2.2.1";
         public const string Dependancy = MODGUID;
 
 
