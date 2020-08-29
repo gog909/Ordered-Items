@@ -70,7 +70,9 @@ namespace OrderedItems
             {
                 ItemSorter.SortItems(inventory, self, out int[] itemStacks, out ItemIndex[] itemOrder);
                 CachedReflection.ItemStacksField.SetValue(self, itemStacks);
-                CachedReflection.ItemOrderField.SetValue(self, itemOrder);
+                var existingOrder = (ItemIndex[])CachedReflection.ItemOrderField.GetValue(self);
+                itemOrder.CopyTo(existingOrder, 0);
+                CachedReflection.ItemOrderField.SetValue(self, existingOrder);
                 CachedReflection.ItemOrderCountField.SetValue(self, itemOrder.Length);
             }
 
